@@ -1,0 +1,48 @@
+version: '3'
+services:
+
+  mqtt-issue:
+    build:
+      context: .
+      dockerfile: mqtt_issue_sample/Dockerfile
+    environment:
+      - DAPR_APP_PORT=3003
+      - DAPR_HTTP_PORT=3503
+      - DAPR_GRPC_PORT=50053
+    depends_on:
+      - mqtt
+      - placement
+    command:  ["python", "main_fast_api.py"]
+    network_mode: "host"
+  mesh-protocol-adapter-dapr:
+    image: "daprio/daprd:1.7.2"
+    command: ["./daprd",
+        "-app-id", "mqtt-issue",
+        "-app-protocol", "http",
+        "-app-port", "3003",
+        "-dapr-http-port", "3503",
+        "-dapr-grpc-port", "50053",
+        "-placement-host-address", "localhost:50006",
+        "-components-path", "./components",
+        "-config", "./config/config.yaml",
+        "-metrics-port", "9093",
+        "-log-level", "info",
+    ]
+    volumes:
+      - "./dapr/config/:/config"
+      - "./dapr/components/:/components"
+    depends_on:
+      - mqtt-issue
+    network_mode: "host"
+    restart: always
+
+  mqtt:
+    image: "eclipse-mosquitto:1.6.12"
+    network_mode: "host"
+    restart: always
+
+  placement:
+    image: "daprio/dapr:1.7.2"
+    command: ["./placement", "-port", "50006", "-log-level", "debug"]
+    network_mode: "host"
+    restart: always
